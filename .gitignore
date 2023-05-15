@@ -1,1 +1,5 @@
 *.ipynb_checkpoints*
+data/misc/*
+data/DTU15/*
+data/srtm15p/*
+data/derived/*
