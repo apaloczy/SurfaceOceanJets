@@ -4,6 +4,10 @@ data/misc/*.mat
 data/DTU15/*.nc
 data/ADT_CMEMS/*.nc
 data/merged_alongtrack_altimetry/*.nc
+data/ADCP_LMG/*.nc
+data/XBT_LMG/*.nc
+data/ADCP_LMG/mk_symlinks.py
+data/XBT_LMG/mk_symlinks.py
 data/srtm15p/*.nc
 data/derived/*.nc
 data/derived/*.npz
