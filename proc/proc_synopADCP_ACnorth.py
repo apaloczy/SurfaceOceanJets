@@ -200,10 +200,10 @@ Ldflat_AC = griddata((xiLd[fgf], yiLd[fgf]), Ldflati[fgf], (lonACp, latACp), met
 Ldsurf_AC = griddata((xiLd[fgs], yiLd[fgs]), Ldsurfi[fgs], (lonACp, latACp), method="cubic")
 
 # Quick plot map of Ld.
-vminflat = np.nanmin(Ldflati)#_AC)
-vmaxflat = np.nanmax(Ldflati)#_AC)
-vminsurf = np.nanmin(Ldsurfi)#_AC)
-vmaxsurf = np.nanmax(Ldsurfi)#_AC)
+vminflat = np.nanmin(Ldflati)
+vmaxflat = np.nanmax(Ldflati)
+vminsurf = np.nanmin(Ldsurfi)
+vmaxsurf = np.nanmax(Ldsurfi)
 
 fig, (ax1, ax2) = plt.subplots(ncols=2, sharex=True, sharey=True)
 cs1 = ax1.pcolormesh(xiLd, yiLd, Ldflati, vmin=vminflat, vmax=vmaxflat)
