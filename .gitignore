@@ -1,6 +1,5 @@
 *.ipynb_checkpoints*
 data/misc/*.nc
-data/misc/*.mat
 data/DTU15/*.nc
 data/ADT_CMEMS/*.nc
 data/merged_alongtrack_altimetry/*.nc
@@ -8,11 +7,16 @@ data/ADCP_LMG/*.nc
 data/XBT_LMG/*.nc
 data/ADCP_LMG/mk_symlinks.py
 data/XBT_LMG/mk_symlinks.py
+data/synopADCP/2011_A10/*.nc
+data/synopADCP/2012_A22/*.nc
+data/synopADCP/2018_I07N/*.nc
+data/synopADCP/2019_I06S/*.nc
 data/srtm15p/*.nc
 data/derived/*.nc
 data/derived/*.npz
 data/derived/digitize_EACFC_Archer_etal2018/*
 data/derived/digitize_GS_Rossby_Zhang2001/*
+proc/*.nc
 proc/GulfStream33N
 proc/GulfStream34N
 proc/GulfStream36N
