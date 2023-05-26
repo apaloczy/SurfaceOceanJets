@@ -238,6 +238,6 @@ Ldsurf_GC = DataArray(Ldsurf_GC, coords=coords, attrs=dict(units="km", long_name
 dsout = Dataset(data_vars=dict(u=U, lon=Lon, lat=Lat, Ldflat=Ldflat_GC, Ldsurf=Ldsurf_GC))
 
 # Shallow side is on the left already, do not flip.
-dsout.to_netcdf("GC_synop.nc")
+dsout.to_netcdf("../data/derived/GC_synop.nc")
 
 plt.show(block=False)

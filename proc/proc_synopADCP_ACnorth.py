@@ -232,6 +232,6 @@ Ldsurf_AC = DataArray(Ldsurf_AC, coords=coords, attrs=dict(units="km", long_name
 dsout = Dataset(data_vars=dict(u=U, lon=Lon, lat=Lat, Ldflat=Ldflat_AC, Ldsurf=Ldsurf_AC))
 
 # Shallow side is on the left already, do not flip.
-dsout.to_netcdf("ACnorth_synop.nc")
+dsout.to_netcdf("../data/derived/ACnorth_synop.nc")
 
 plt.show(block=False)

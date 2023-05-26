@@ -234,6 +234,6 @@ dsout = Dataset(data_vars=dict(u=U, lon=Lon, lat=Lat, Ldflat=Ldflat_BC, Ldsurf=L
 dsout["x"] = - dsout["x"]
 dsout = dsout.sortby("x")
 
-dsout.to_netcdf("BC_synop.nc")
+dsout.to_netcdf("../data/derived/BC_synop.nc")
 
 plt.show(block=False)
