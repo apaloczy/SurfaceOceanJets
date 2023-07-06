@@ -126,8 +126,9 @@ plt.close("all")
 
 CORE_CONSTRAINT = True
 CAP_CENTER = False
+out_prefix = "../data/derived/"
 
-umaxfracLs = [0.5, 0.25, 0.1]
+umaxfracLs = [0.5, 0.4, 0.3, 0.25, 0.2, 0.1]
 umaxfrac = 0.1 # Fraction of the core velocity to cap the fit at either side of the jet.
 
 AVGLR_ufrac = True
@@ -138,7 +139,9 @@ ACCjets_angdiff_thresh = 45 # [Degrees]
 names = ["GulfStream33N", "GulfStream34N", "GulfStream36N", "GulfStream37N", "GulfStream38N", "AgulhasCurrent", "EAC29S", "BrazilCurrent29S", "KuroshioCurrent25N", "KuroshioCurrent28p5N", "ustream_SAFjet_LMG.nc", "ustream_PFjet_LMG.nc", "ustream_SACCFjet_LMG.nc", "ustream_shelbreakjet_LMG.nc"]
 
 # Add lower-latitude jets from synoptic ADCP sections.
-names.extend(glob("*_synop.nc"))
+names_synop = glob("%s*_synop.nc"%out_prefix)
+names_synop = [n.removeprefix(out_prefix) for n in names_synop]
+names.extend(names_synop)
 
 if CAP_CENTER:
     cap_center = "yescappedcore"
@@ -182,21 +185,25 @@ for name in names:
     if "LMGshfbrk" not in name and name not in ACCnames and not SYNOP:
         f = "%s/ug_stream_TPJAOS-%s.nc"%(nameh, name)
     else:
-        f = "../data/derived/" + f
+        f = out_prefix + f
 
     ds = open_dataset(f)
     if SYNOP:
         xs = ds["x"].values
         us = ds["u"].values
-    elif name in ACCnames:
+    elif name in ACCnames or "LMGshfbrk" in name:
         xs = ds["x"].values
-        fangg = np.abs(ds["angdiff"])<=ACCjets_angdiff_thresh
+        if "LMGshfbrk" in name:
+            fangg = np.abs(ds["angcr"])<=ACCjets_angdiff_thresh
+        else:
+            fangg = np.abs(ds["angdiff"])<=ACCjets_angdiff_thresh
         us = ds["us"].where(fangg)
         pg = 100*np.sum(fangg.values)/fangg.size
         print("Kept %d%% of values for %s"%(pg, name))
         xEDOF = np.isfinite(us).sum(dim="t")
         SE = us.std(dim="t")/np.sqrt(xEDOF)
         us = us.mean(dim="t").values
+        us[np.abs(xs)>50] = np.nan
     else:
         xs = ds["x"].values
         xEDOF = ds["xEDOF"].values
@@ -321,7 +328,7 @@ for name in names:
     if not SYNOP:
         npzout.update(dict(ekeavg=ekeavg))
 
-    np.savez(name+".npz", **npzout)
+    np.savez(out_prefix + name + ".npz", **npzout)
 
     dyl, dyt = 0.1, 0.1
     fig, ax = plt.subplots()
