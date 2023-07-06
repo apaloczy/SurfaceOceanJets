@@ -17,6 +17,7 @@ data/derived/*.npz
 data/derived/digitize_EACFC_Archer_etal2018/*
 data/derived/digitize_GS_Rossby_Zhang2001/*
 proc/*.nc
+proc/*.npz
 proc/GulfStream33N
 proc/GulfStream34N
 proc/GulfStream36N
