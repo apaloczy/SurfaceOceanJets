@@ -291,36 +291,44 @@ for f in fnames:
             zout, uout, vout = zout[fgout, :], uout[fgout, :], vout[fgout, :]
         xpout = np.tile(xout[:, np.newaxis], (1, zout.shape[1]))
         uoutu = uout
+        voutu = vout
         cblab = "$u$ east [m/s]"
 
         # Locate shelfbreak jet core.
         uoutusurf_aux = np.nanmean(uoutu[:, :ntopbins_avg], axis=1) # Average top few bins.
+        voutusurf_aux = np.nanmean(voutu[:, :ntopbins_avg], axis=1) # Average top few bins.
         fshelf = xout<=shelfx # Excluding shelf, there are often zonal velocity maxima there too.
         if fn + "-O" != "00787-O": # This transect starts closer to the shelfbreak.
             uoutusurf_aux[fshelf] = 0
+            voutusurf_aux[fshelf] = 0
 
         if fn + "-O" in leftshift_cruises:
             foffsh = np.abs(xout - xout[-1])<=offshx # Excluding deep part of transect, there are often zonal velocity maxima there too.
             uoutusurf_aux[foffsh] = 0
+            voutusurf_aux[foffsh] = 0
 
         fcore = np.nanargmax(uoutusurf_aux)
         xstream = xout - xout[fcore]
         zout0 = zout[0, :]
         uaux = interp_sec(xout, zout0, uout.T, xiT, xout, fcore)
+        vaux = interp_sec(xout, zout0, vout.T, xiT, xout, fcore)
         if zout0.size>maxADCPzbins:
             print("%d is more than the max %d ADCP bins. Capping."%(zout0.size, maxADCPzbins))
             uaux = uaux[:maxADCPzbins, :]
+            vaux = vaux[:maxADCPzbins, :]
 
         lonouti = np.interp(xiT, xstream, lonout, left=np.nan, right=np.nan)
         latouti = np.interp(xiT, xstream, latout, left=np.nan, right=np.nan)
         timei = timeout[timeout.size//2]
         if us is None:
             us = uaux[..., np.newaxis]
+            vs = vaux[..., np.newaxis]
             lons = lonouti[np.newaxis, :]
             lats = latouti[np.newaxis, :]
             ti = timei
         else:
             us = np.dstack((us, uaux[..., np.newaxis]))
+            vs = np.dstack((vs, vaux[..., np.newaxis]))
             lons = np.vstack((lons, lonouti[np.newaxis, :]))
             lats = np.vstack((lats, latouti[np.newaxis, :]))
             ti = np.append(ti, timei)
@@ -395,36 +403,44 @@ for f in fnames:
         xin = np.append(0, np.nancumsum(distance(lonin, latin)))*1e-3
         xpin = np.tile(xin[:, np.newaxis], (1, zin.shape[1]))
         uinu = uin
+        vinu = vin
         cblab = "$u$ east [m/s]"
 
         # Locate shelfbreak jet core.
         uinusurf_aux = np.nanmean(uinu[:, :ntopbins_avg], axis=1) # Average top 2 bins.
+        vinusurf_aux = np.nanmean(vinu[:, :ntopbins_avg], axis=1) # Average top 2 bins.
         fshelf = xin<=shelfx # Excluding shelf, there are often zonal velocity maxima there too.
         foffsh = np.abs(xin - xin[-1])<=offshx # Excluding deep part of transect, there are often zonal velocity maxima there too.
         uinusurf_aux[fshelf] = 0
+        vinusurf_aux[fshelf] = 0
 
         if fn + "-I" in leftshift_cruises:
             foffsh = np.abs(xin - xin[-1])<=offshx # Excluding deep part of transect, there are often zonal velocity maxima there too.
             uinusurf_aux[foffsh] = 0
+            vinusurf_aux[foffsh] = 0
 
         fcore = np.nanargmax(uinusurf_aux)
         xstream = xin - xin[fcore]
         zin0 = zin[0, :]
         uaux = interp_sec(xin, zin0, uin.T, xiT, xin, fcore)
+        vaux = interp_sec(xin, zin0, vin.T, xiT, xin, fcore)
         if zin0.size>maxADCPzbins:
             print("%d is more than the max %d ADCP bins. Capping."%(zin0.size, maxADCPzbins))
             uaux = uaux[:maxADCPzbins, :]
+            vaux = vaux[:maxADCPzbins, :]
 
         lonini = np.interp(xiT, xstream, lonin, left=np.nan, right=np.nan)
         latini = np.interp(xiT, xstream, latin, left=np.nan, right=np.nan)
         timei = timein[timein.size//2]
         if us is None:
             us = uaux[..., np.newaxis]
+            vs = vaux[..., np.newaxis]
             lons = lonini[np.newaxis, :]
             lats = latini[np.newaxis, :]
             ti = timei
         else:
             us = np.dstack((us, uaux[..., np.newaxis]))
+            vs = np.dstack((vs, vaux[..., np.newaxis]))
             lons = np.vstack((lons, lonini[np.newaxis, :]))
             lats = np.vstack((lats, latini[np.newaxis, :]))
             ti = np.append(ti, timei)
@@ -503,6 +519,14 @@ if PLT_MAP:
     axm.set_title("All cruise tracks", fontsize=16, fontweight="black")
     if SAVEFIGS:
         figm.savefig("CapeHornjet/cruise_tracks_shelfbreak.png", bbox_inches="tight", dpi=150)
+
+# Add rotated downstream velocity based on angle of the vector near the jet core.
+usa = np.nanmean(us[:ntopbins_avg, :, :], axis=0)
+vsa = np.nanmean(vs[:ntopbins_avg, :, :], axis=0)
+
+fang = 10 # [km]
+fcr = np.abs(xiT)<=fang
+angcr = np.arctan2(np.nanmean(vsa[fcr, :], axis=0), np.nanmean(usa[fcr, :], axis=0))*180/np.pi
 
 # Add left and right surface Ld from LG20 to stream average plot****
 dd = loadmat("../data/misc/Ld_LaCasce-Groeskamp_2020.mat")
@@ -592,10 +616,18 @@ zTc = IndexVariable("z", zT, attrs=dict(units="m", long_name="Depth"))
 coords = dict(t=tic, x=xsc)
 coordsT = dict(z=zTc, x=xsc)
 coordsx = dict(x=xsc)
+coordst = dict(t=tic)
 us = us.swapaxes(0, 1)
+vs = vs.swapaxes(0, 1)
 uszavg = np.nanmean(us[:, fzu, :], axis=1).T
+vszavg = np.nanmean(vs[:, fzu, :], axis=1).T
 
-U = DataArray(uszavg, coords=coords, attrs=dict(units="m/s", long_name="Downstream velocity"))
+uszavgr, vszavgr = rot_vec(uszavg, vszavg, angle=angcr[:, np.newaxis])
+
+U = DataArray(uszavg, coords=coords, attrs=dict(units="m/s", long_name="Eastward velocity"))
+V = DataArray(vszavg, coords=coords, attrs=dict(units="m/s", long_name="Northward velocity"))
+Ur = DataArray(uszavgr, coords=coords, attrs=dict(units="m/s", long_name="Downstream velocity"))
+Vr = DataArray(vszavgr, coords=coords, attrs=dict(units="m/s", long_name="Cross-stream velocity"))
 Lon = DataArray(lons, coords=coords, attrs=dict(units="Degrees east", long_name="Cross-stream longitudes"))
 Lat = DataArray(lats, coords=coords, attrs=dict(units="Degrees north", long_name="Cross-stream latitudes"))
 
@@ -673,6 +705,14 @@ ax.set_title("Shelfbreak jet (1999-2018 XBT average), min valid points = %d"%nob
 fig.savefig("CapeHornjet/shelfbreakjet_Tmean.png", bbox_inches="tight", dpi=150)
 
 
+max_rotang = 45
+usr, vsr = rot_vec(us, vs, angle=angcr[np.newaxis, np.newaxis, :])
+
+fbadang = np.abs(angcr)>max_rotang
+usr[:, :, fbadang] = np.nan
+vsr[:, :, fbadang] = np.nan
+usavgr = np.nanmean(usr, axis=-1).T
+vsavgr = np.nanmean(vsr, axis=-1).T
 
 # Time-averaged ADCP/XBT Ertel PV.
 # PV = (f + dudx - dudz*(dTdx/dTdz)) / h
@@ -689,7 +729,8 @@ dTdxi = interp_secz(xsiT, zT, dTdx, z0)
 Ts = dTdxi/dTdzi
 Ts[np.abs(Ts)>Ts_thresh] = np.nan
 dzu = np.gradient(z0)[:, np.newaxis]
-dudz, dudx = np.gradient(usavg)
+# dudz, dudx = np.gradient(usavg)
+dudz, dudx = np.gradient(usavgr)
 dudz, dudx = dudz/dzu, dudx/dx
 dudx_zavg = np.nanmean(dudx[fzu, :], axis=0)
 dudzTs_zavg = np.nanmean(dudz[fzu, :]*Ts[fzu, :], axis=0)
@@ -728,6 +769,7 @@ ax.set_title("Shelfbreak jet (1999-2018 ADCP/XBT average, %d-%d m)"%(ztop, zbot)
 fig.savefig("CapeHornjet/shelfbreakjet_PVmean.png", bbox_inches="tight", dpi=125)
 
 
+angcr = DataArray(angcr, coords=coordst, attrs=dict(units="Degrees", long_name="Stream angle relative to East"))
 xEDOF = DataArray(np.isfinite(uszavg).sum(axis=0), coords=coordsx, attrs=dict(units="unitless", long_name="Number of effective degrees of freedom based on valid ADCP observations"))
 T = DataArray(Tsmean, coords=coordsT, attrs=dict(units="Degrees Celsius", long_name="In situ temperature"))
 PV = DataArray(PV, coords=coordsx, attrs=dict(units="1/m/s", long_name="Ertel Potential Vorticity"))
@@ -735,7 +777,7 @@ PV0 = DataArray(PV0, coords=coordsx, attrs=dict(units="1/m/s", long_name="Ertel 
 PVx = DataArray(PVx, coords=coordsx, attrs=dict(units="1/m/s", long_name="Ertel PV relative vorticity term (v_x/h)"))
 PVz = DataArray(PVz, coords=coordsx, attrs=dict(units="1/m/s", long_name="Ertel PV isopycnal slope term [-u_z (T_x/T_z)/h]"))
 
-dvars = dict(us=U, T=T, lon=Lon, lat=Lat, xEDOF=xEDOF, Ldflat=Ldflat, Ldsurf=Ldsurf, PV=PV, PV0=PV0, PVx=PVx, PVz=PVz)
+dvars = dict(us=Ur, vs=Vr, u=U, v=V, T=T, angcr=angcr, lon=Lon, lat=Lat, xEDOF=xEDOF, Ldflat=Ldflat, Ldsurf=Ldsurf, PV=PV, PV0=PV0, PVx=PVx, PVz=PVz)
 attrs = dict(bounding_isotherm_for_lower_PV_layer="%1.2f degC"%T0)
 dsout = Dataset(data_vars=dvars, attrs=attrs).sortby("t")
 dsout.to_netcdf("../data/derived/ustream_shelbreakjet_LMG.nc")

@@ -150,8 +150,8 @@ lonAC = lon[fAC]
 latAC = lat[fAC]
 fshpspd = fbad_shipspd[fAC]
 
+uAC = ualong_zavg2[fAC]
 vAC = vcross_zavg2[fAC]
-vAC = - vAC
 
 # 5) Project the data on a straight transect and remap the velocity.
 numll = lonAC.size
@@ -159,11 +159,11 @@ lonACp = np.linspace(lonAC[0], lonAC[-1], num=numll)
 latACp = np.linspace(latAC[0], latAC[-1], num=numll)
 distACp = np.append(0, np.cumsum(distance(lonACp, latACp)))*1e-3
 
-distACo, vACo = distAC.copy(), vAC.copy()
+distACo, vACo, uACo = distAC.copy(), vAC.copy(), uAC.copy()
 distACo = distACo - distACo[0]
+uAC = interp1d(lonAC[~fshpspd], uACo[~fshpspd], bounds_error=False)(lonACp)
 vAC = interp1d(lonAC[~fshpspd], vACo[~fshpspd], bounds_error=False)(lonACp)
-xACo = distACo - distACo[np.nanargmax(vACo)]
-xAC = distACp - distACp[np.nanargmax(vAC)]
+xACo = distACo - distACo[np.nanargmax(-vACo)]
 
 fig = plt.figure()
 ax = plt.axes(projection=ccrs.PlateCarree())
@@ -171,16 +171,33 @@ ax.plot(lonAC, latAC, "b")
 ax.plot(lonACp, latACp, "r")
 ax.set_xlabel("Longitude")
 ax.set_ylabel("Latitude")
+dd = 6
+ax.set_extent((lonAC[0]-dd, lonAC[-1]+dd, latAC[0]-dd, latAC[-1]+dd))
+ax.coastlines()
+
+# Rotate again based on angle of the vector near the jet core.
+fang = 10 # [km]
+fcr = np.abs(xACo)<=fang
+angcr = np.arctan2(np.nanmean(vAC[fcr]), np.nanmean(uAC[fcr]))*180/np.pi + 90 # Angle relative to line direction.
+uACr, vACr = rot_vec(uAC, vAC, angle=angcr)
+
+print("")
+print("Rotation angle (from transect direction): %1.1f degrees"%angcr)
+xAC = distACp - distACp[np.nanargmax(-vACr)]
 
 fig, ax = plt.subplots()
-ax.plot(xACo, vACo)
-ax.plot(xAC, vAC)
+ax.plot(xACo, uACo, "b", alpha=0.2)
+ax.plot(xAC, uAC, "b--", alpha=0.2)
+ax.plot(xAC, uACr, "b", label="$u$ along")
+ax.plot(xACo, vACo, "r", alpha=0.2)
+ax.plot(xAC, vAC, "r--", alpha=0.2)
+ax.plot(xAC, vACr, "r", label="$v$ cross")
 xl, xr = xAC[0], xAC[-1]
 ax.set_xlim(xl, xr)
 ax.axhline(color="gray", linestyle="solid")
 ax.axvline(color="gray", linestyle="solid")
+ax.legend()
 ax.set_title("Depth-averaged velocities (top %d m)"%zbot_avg)
-
 
 # 5) Get Lds from LaCasce & Groeskamp's (2020) map.
 dd = loadmat("../data/misc/Ld_LaCasce-Groeskamp_2020.mat")
@@ -226,7 +243,7 @@ ax.set_ylabel("$L_d$ [km]")
 coords = dict(x=xAC)
 Lon = DataArray(lonAC, coords=coords, attrs=dict(units="Degrees East", long_name="Longitude"))
 Lat = DataArray(latAC, coords=coords, attrs=dict(units="Degrees North", long_name="Latitude"))
-U = DataArray(vAC, coords=coords, attrs=dict(units="m/s", long_name="Downstream velocity"))
+U = DataArray(-vACr, coords=coords, attrs=dict(units="m/s", long_name="Downstream velocity"))
 Ldflat_AC = DataArray(Ldflat_AC, coords=coords, attrs=dict(units="km", long_name="First baroclinic deformation radius"))
 Ldsurf_AC = DataArray(Ldsurf_AC, coords=coords, attrs=dict(units="km", long_name="First surface deformation radius"))
 dsout = Dataset(data_vars=dict(u=U, lon=Lon, lat=Lat, Ldflat=Ldflat_AC, Ldsurf=Ldsurf_AC))

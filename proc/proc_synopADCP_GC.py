@@ -153,6 +153,7 @@ lonGC = lon[fGC]
 latGC = lat[fGC]
 fshpspd = fbad_shipspd[fGC]
 
+uGC = ualong_zavg2[fGC]
 vGC = vcross_zavg2[fGC]
 
 # 5) Project the data on a straight transect and remap the velocity.
@@ -160,7 +161,7 @@ numll = lonGC.size
 lonGCp = np.linspace(lonGC[0], lonGC[-1], num=numll)
 latGCp = np.linspace(latGC[0], latGC[-1], num=numll)
 
-distGCo, vGCo = distGC.copy(), vGC.copy()
+distGCo, vGCo, uGCo = distGC.copy(), vGC.copy(), uGC.copy()
 distGCo = distGCo - distGCo[0]
 if PROJECT_STRAIGHT_SECTION:
     vGC = interp1d(latGC[~fshpspd], vGCo[~fshpspd], bounds_error=False)(latGCp)
@@ -169,7 +170,6 @@ else:
     vGC = vGCo.copy()
     distGCp = distGC.copy()
 xGCo = distGCo - distGCo[np.nanargmax(vGCo)]
-xGC = distGCp - distGCp[np.nanargmax(vGC)]
 
 fig = plt.figure()
 ax = plt.axes(projection=ccrs.PlateCarree())
@@ -177,14 +177,33 @@ ax.plot(lonGC, latGC, "b")
 ax.plot(lonGCp, latGCp, "r")
 ax.set_xlabel("Longitude")
 ax.set_ylabel("Latitude")
+dd = 6
+ax.set_extent((lonGC[0]-dd, lonGC[-1]+dd, latGC[0]-dd, latGC[-1]+dd))
+ax.coastlines()
 
+# Rotate again based on angle of the vector near the jet core.
+fang = 10 # [km]
+fcr = np.abs(xGCo)<=fang
+angcr = np.arctan2(np.nanmean(vGC[fcr]), np.nanmean(uGC[fcr]))*180/np.pi - 90 # Angle relative to line direction.
+uGCr, vGCr = rot_vec(uGC, vGC, angle=angcr)
+
+print("")
+print("Rotation angle (from transect direction): %1.1f degrees"%angcr)
+xGC = distGCp - distGCp[np.nanargmax(vGCr)]
+
+plt.close("all")
 fig, ax = plt.subplots()
-ax.plot(xGCo, vGCo)
-ax.plot(xGC, vGC)
+ax.plot(xGCo, uGCo, "b", alpha=0.2)
+ax.plot(xGC, uGC, "b--", alpha=0.2)
+ax.plot(xGC, uGCr, "b", label="$u$ along")
+ax.plot(xGCo, vGCo, "r", alpha=0.2)
+ax.plot(xGC, vGC, "r--", alpha=0.2)
+ax.plot(xGC, vGCr, "r", label="$v$ cross")
 xl, xr = xGC[0], xGC[-1]
 ax.set_xlim(xl, xr)
 ax.axhline(color="gray", linestyle="solid")
 ax.axvline(color="gray", linestyle="solid")
+ax.legend()
 ax.set_title("Depth-averaged velocities (top %d m)"%zbot_avg)
 
 
@@ -206,10 +225,10 @@ Ldflat_GC = griddata((xiLd[fgf], yiLd[fgf]), Ldflati[fgf], (lonGCp, latGCp), met
 Ldsurf_GC = griddata((xiLd[fgs], yiLd[fgs]), Ldsurfi[fgs], (lonGCp, latGCp), method="cubic")
 
 # Quick plot map of Ld.
-vminflat = np.nanmin(Ldflati)#_GC)
-vmaxflat = np.nanmax(Ldflati)#_GC)
-vminsurf = np.nanmin(Ldsurfi)#_GC)
-vmaxsurf = np.nanmax(Ldsurfi)#_GC)
+vminflat = np.nanmin(Ldflati)
+vmaxflat = np.nanmax(Ldflati)
+vminsurf = np.nanmin(Ldsurfi)
+vmaxsurf = np.nanmax(Ldsurfi)
 
 fig, (ax1, ax2) = plt.subplots(ncols=2, sharex=True, sharey=True)
 cs1 = ax1.pcolormesh(xiLd, yiLd, Ldflati, vmin=vminflat, vmax=vmaxflat)
@@ -232,7 +251,7 @@ ax.set_ylabel("$L_d$ [km]")
 coords = dict(x=xGC)
 Lon = DataArray(lonGC, coords=coords, attrs=dict(units="Degrees East", long_name="Longitude"))
 Lat = DataArray(latGC, coords=coords, attrs=dict(units="Degrees North", long_name="Latitude"))
-U = DataArray(vGC, coords=coords, attrs=dict(units="m/s", long_name="Downstream velocity"))
+U = DataArray(vGCr, coords=coords, attrs=dict(units="m/s", long_name="Downstream velocity"))
 Ldflat_GC = DataArray(Ldflat_GC, coords=coords, attrs=dict(units="km", long_name="First baroclinic deformation radius"))
 Ldsurf_GC = DataArray(Ldsurf_GC, coords=coords, attrs=dict(units="km", long_name="First surface deformation radius"))
 dsout = Dataset(data_vars=dict(u=U, lon=Lon, lat=Lat, Ldflat=Ldflat_GC, Ldsurf=Ldsurf_GC))
