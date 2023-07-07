@@ -30,17 +30,16 @@ def nearfirst_decreasing(u, u0):
     """
     return u[np.where(u - u0 <= 0)[0][0]]
 
-
-def getLjfs(usauxl, usauxr, uscapL):
+def getLjfs(xsaux, usaux, usauxl, usauxr, uscapL):
     try:
         usfrL = nearfirst_decreasing(usauxr, uscapL)
-        Ljrf = xs[us==usfrL][0]
+        Ljrf = xsaux[usaux==usfrL][0]
     except IndexError:
         Ljrf = np.nan
 
     try:
         usflL = nearfirst_decreasing(np.flipud(usauxl), uscapL)
-        Ljlf = xs[us==usflL][0]
+        Ljlf = xsaux[usaux==usflL][0]
     except IndexError:
         Ljlf = np.nan
 
@@ -128,13 +127,13 @@ CORE_CONSTRAINT = True
 CAP_CENTER = False
 out_prefix = "../data/derived/"
 
-umaxfracLs = [0.5, 0.4, 0.3, 0.25, 0.2, 0.1]
-umaxfrac = 0.1 # Fraction of the core velocity to cap the fit at either side of the jet.
+umaxfracLs = [0.60, 0.55, 0.50, 0.45, 0.40, 0.35, 0.30, 0.25, 0.20, 0.15, 0.10]
+umaxfrac = 0.10 # Fraction of the core velocity to cap the fit at either side of the jet.
 
 AVGLR_ufrac = True
-umaxfrac_Ldlr = 0.5
+umaxfrac_Ldlr = 0.4
 nLdcap_avg = 1
-ACCjets_angdiff_thresh = 45 # [Degrees]
+ACCjets_angdiff_thresh = 45 # Maximum instantaneous stream rotation angle to include in time-average for the ADCP data [Degrees]
 
 names = ["GulfStream33N", "GulfStream34N", "GulfStream36N", "GulfStream37N", "GulfStream38N", "AgulhasCurrent", "EAC29S", "BrazilCurrent29S", "KuroshioCurrent25N", "KuroshioCurrent28p5N", "ustream_SAFjet_LMG.nc", "ustream_PFjet_LMG.nc", "ustream_SACCFjet_LMG.nc", "ustream_shelbreakjet_LMG.nc"]
 
@@ -155,7 +154,7 @@ else:
 
 ACCnames = ["SAFjet", "PFjet", "SACCFjet"]
 for name in names:
-    print(name)
+    print(name, "================================")
     if "synop" in name:
         SYNOP = True
     else:
@@ -274,23 +273,37 @@ for name in names:
     xlrtrim = (xltrim, xrtrim)
 
     # Also find the position of a fractional drop-off in velocity to compare with Ld.
+    # Make an interpolated jet profile just to get better reolution on the cutoff points.
+    xsmin = -np.maximum(-xs[0], xs[-1])
+    xsaux = np.linspace(xsmin, 0, num=1000)
+    xsaux = np.hstack((xsaux, np.flipud(-xsaux)[1:]))
+    usaux = np.interp(xsaux, xs, us, left=np.nan, right=np.nan)
+
+    usauxl, usauxr = usaux.copy(), usaux.copy()
+    nxhaux = np.where(xsaux==0)[0][0]
+    usauxl[nxhaux:] = np.nan
+    usauxr[:nxhaux] = np.nan
+
+    print("")
     Ljlfs, Ljrfs = dict(), dict()
     for umaxfracL in umaxfracLs:
         uscapL = usmax*umaxfracL
-        Ljlfi, Ljrfi = getLjfs(usauxl, usauxr, uscapL)
+        Ljlfi, Ljrfi = getLjfs(xsaux, usaux, usauxl, usauxr, uscapL)
         Ljlfs.update({umaxfracL:Ljlfi})
         Ljrfs.update({umaxfracL:Ljrfi})
+        print("%d%% umax left/right: %1.1f"%(umaxfracL*100, Ljlfi), "/", "%1.1f km"%Ljrfi)
+    print("")
 
     Ljl, Ljr, ypl, ypr = exfit_Lj_singleexp(xs, us, xlrtrim, umin=0.05, uctol=0.001, CAP_CENTER=CAP_CENTER, CORE_CONSTRAINT=CORE_CONSTRAINT)
 
     xlu, xru = Ljlfs[umaxfrac_Ldlr], Ljrfs[umaxfrac_Ldlr]
     if AVGLR_ufrac:
-        Ll, Lr = xs[near(xs, xlu)], xs[near(xs, xru)]
+        Ll, Lr = xsaux[near(xsaux, xlu)], xs[near(xs, xru)]
         fl, fr = np.logical_and(xs>Ll, xs<0), np.logical_and(xs>0, xs<Lr)
         Ldl_surf, Ldr_surf = np.nanmean(Ld_surf[fl]), np.nanmean(Ld_surf[fr])
         Ldl_flat, Ldr_flat = np.nanmean(Ld_flat[fl]), np.nanmean(Ld_flat[fr])
     else:
-        fl, fr = near(xs, xlu), near(xs, xru)
+        fl, fr = near(xsaux, xlu), near(xsaux, xru)
         Ldl_surf, Ldr_surf = Ld_surf[fl], Ld_surf[fr]
         Ldl_flat, Ldr_flat = Ld_flat[fl], Ld_flat[fr]
 
@@ -310,7 +323,6 @@ for name in names:
         xsclip = 140
 
     # Save Lj, Ld values for scatterplot.
-    # print(xltrim, xrtrim)
     if ds["lat"].ndim==1:
         lonn, latt = ds["lon"], ds["lat"]
     else:
@@ -330,7 +342,7 @@ for name in names:
 
     np.savez(out_prefix + name + ".npz", **npzout)
 
-    dyl, dyt = 0.1, 0.1
+    dyl, dyt = 0.1, 0.18
     fig, ax = plt.subplots()
     ax.axhline(y=0, color="gray", linestyle="dashed")
     ax.axvline(x=0, color="gray", linestyle="dashed")
@@ -348,9 +360,9 @@ for name in names:
     for umaxfracL in umaxfracLs:
         Ljlfi, Ljrfi = Ljlfs[umaxfracL], Ljrfs[umaxfracL]
         if np.isfinite(Ljlfi):
-            ax.plot(Ljlfi, us[xs==Ljlfi], marker="o", mfc="b", mec="b")
+            ax.plot(Ljlfi, usaux[xsaux==Ljlfi], marker="o", mfc="b", mec="b")
         if np.isfinite(Ljrfi):
-            ax.plot(Ljrfi, us[xs==Ljrfi], marker="o", mfc="b", mec="b")
+            ax.plot(Ljrfi, usaux[xsaux==Ljrfi], marker="o", mfc="b", mec="b")
 
     ax.text(0.2, 0.68+dyt, "$e_l$ = %.1f km"%Ljl, fontsize=12, transform=ax.transAxes, ha="center", color="r")
     ax.text(0.8, 0.68+dyt, "$e_r$ = %.1f km"%Ljr, fontsize=12, transform=ax.transAxes, ha="center", color="b")
