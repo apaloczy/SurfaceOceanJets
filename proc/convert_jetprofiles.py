@@ -50,6 +50,10 @@ def fitfunc(x, a, b): # with the constraint that the peak velocity matches that 
     return a*x + b
 
 
+def fitfunc_2exps(x, L1, L2, a, b, c):
+    return a*np.exp(x/L1) + b*np.exp(x/L2) + c
+
+
 def exfit_Lj_singleexp(x, u, xlrtrim, umin=0.05, uctol=0.001, CAP_CENTER=True, CORE_CONSTRAINT=True):
     xtriml, xtrimr = xlrtrim
     ftl, ftr = near(x, xtriml), near(x, xtrimr)
@@ -120,11 +124,70 @@ def exfit_Lj_singleexp(x, u, xlrtrim, umin=0.05, uctol=0.001, CAP_CENTER=True, C
     return 1/al, 1/ar, ypl, ypr
 
 
+def exfit_Lj_doubleexp(x, u, xlrtrim, uctol=0.001, dxi=1.0, CAP_CENTER=False, CORE_CONSTRAINT=True):
+    xtriml, xtrimr = xlrtrim
+    ftl, ftr = near(x, xtriml), near(x, xtrimr)
+    ftr += 1
+
+    trim = slice(ftl, ftr)
+    x0 = x.copy()
+    x = x[trim]
+    u = u[trim]
+
+    nxh = np.where(x==0)[0][0] # Get left and right sides of the jet.
+    if CAP_CENTER:
+        nxhl, nxhr = nxh, nxh + 1 # Skip u(x=0).
+    else:
+        nxhl, nxhr = nxh + 1, nxh # Include u(x=0).
+
+    fl, fr = slice(0, nxhl), slice(nxhr, None) # Keep origin on both sides.
+    xl, xr = x[fl], x[fr]
+    ul, ur = u[fl], u[fr]
+
+    # Fit curves on each side.
+    fgl = np.isfinite(ul)
+    fgr = np.isfinite(ur)
+    maxfev = 10000
+    xll, xrr = xl[fgl], xr[fgr]
+    ull, urr = ul[fgl], ur[fgr]
+    ucore = np.nanmax(u)
+    abguessl = (10, 10, 1, 1, 0)
+    abguessr = (-10, -10, 1, 1, 0)
+
+    if CORE_CONSTRAINT: # Add a constraint on the bounds of the core velocity of the resulting exponential.
+        Lmax = 100
+        bndsl = ((-Lmax, -Lmax, -np.inf, -np.inf, -np.inf), (Lmax, Lmax, np.inf, np.inf, np.inf))
+        bndsr = bndsl
+    else: # Least-squares fit a line to the profile in log space, no constraints.
+        bndsl = (-np.inf, np.inf)
+        bndsr = (-np.inf, np.inf)
+
+    nxl = int(xll.ptp()/dxi)
+    nxr = int(xrr.ptp()/dxi)
+    xlli = np.linspace(xll[0], xll[-1], num=nxl)
+    xrri = np.linspace(xrr[0], xrr[-1], num=nxr)
+
+    ulli = np.interp(xlli, xll, ull, left=np.nan, right=np.nan)
+    urri = np.interp(xrri, xrr, urr, left=np.nan, right=np.nan)
+
+    (L1l, L2l, al, bl, cl), _ = curve_fit(fitfunc_2exps, xlli, ulli, p0=abguessl, bounds=bndsl, maxfev=maxfev)
+    (L1r, L2r, ar, br, cr), _ = curve_fit(fitfunc_2exps, xrri, urri, p0=abguessr, bounds=bndsr, maxfev=maxfev)
+
+    # x and y arrays ready to plot over the full range.
+    nxh0 = np.where(x0==0)[0][0]
+    xpl, xpr = x0[:nxh0+1], x0[nxh0:]
+    ypl = fitfunc_2exps(xpl, L1l, L2l, al, bl, cl)
+    ypr = fitfunc_2exps(xpr, L1r, L2r, ar, br, cr)
+
+    return xpl, xpr, ypl, ypr
+
+
 #---
 plt.close("all")
 
 CORE_CONSTRAINT = True
 CAP_CENTER = False
+FIT_DOUBLEEXP = True
 out_prefix = "../data/derived/"
 
 umaxfracLs = [0.60, 0.55, 0.50, 0.45, 0.40, 0.35, 0.30, 0.25, 0.20, 0.15, 0.10]
@@ -294,7 +357,13 @@ for name in names:
         print("%d%% umax left/right: %1.1f"%(umaxfracL*100, Ljlfi), "/", "%1.1f km"%Ljrfi)
     print("")
 
-    Ljl, Ljr, ypl, ypr = exfit_Lj_singleexp(xs, us, xlrtrim, umin=0.05, uctol=0.001, CAP_CENTER=CAP_CENTER, CORE_CONSTRAINT=CORE_CONSTRAINT)
+    if FIT_DOUBLEEXP:
+        dxi = np.median(np.diff(xs))
+        print("dxi = %1.1f km"%dxi)
+        xpl, xpr, ypl, ypr = exfit_Lj_doubleexp(xs, us, xlrtrim, dxi=dxi, CAP_CENTER=CAP_CENTER, CORE_CONSTRAINT=CORE_CONSTRAINT)
+        Ljl, Ljr, _, _ = exfit_Lj_singleexp(xs, us, xlrtrim, CAP_CENTER=CAP_CENTER, CORE_CONSTRAINT=CORE_CONSTRAINT)
+    else:
+        Ljl, Ljr, ypl, ypr = exfit_Lj_singleexp(xs, us, xlrtrim, CAP_CENTER=CAP_CENTER, CORE_CONSTRAINT=CORE_CONSTRAINT)
 
     xlu, xru = Ljlfs[umaxfrac_Ldlr], Ljrfs[umaxfrac_Ldlr]
     if AVGLR_ufrac:
@@ -318,7 +387,7 @@ for name in names:
     cl2, cr2 = "r--", "b--"
 
     if name in ["LMGshfbrk"]:
-        xsclip = 30
+        xsclip = 35
     else:
         xsclip = 140
 
@@ -333,6 +402,11 @@ for name in names:
     lon0, lat0 = lonn.values[fm], latt.values[fm]
 
     npzout = dict(x=xs, us=us, lon=lonn, lat=latt, lon0=lon0, lat0=lat0, CL95l=CL95l, CL95u=CL95u, ypl=ypl, ypr=ypr, Ljl=Ljl, Ljr=Ljr, Ljlufrac=Ljlfs, Ljrufrac=Ljrfs, xlt=xltrim, xrt=xrtrim, Ldlsurf=Ldl_surf, Ldrsurf=Ldr_surf, Ldlflat=Ldl_flat, Ldrflat=Ldr_flat)
+
+    if FIT_DOUBLEEXP:
+        npzout.update(dict(xpl=xpl))
+        npzout.update(dict(xpr=xpr))
+
     if IS_ALTIMETRY:
         vADT = ds["vADTs"].mean("t").values
         npzout.update(dict(vADT=vADT))
@@ -355,22 +429,30 @@ for name in names:
     ax.text(0.8, 0.75+dyt, "$L_{dr}$ = %.1f, %.1f km"%(Ldr_surf, Ldr_flat), fontsize=12, transform=ax.transAxes, ha="center", color="b")
     ax.axvline(xlrtrim[0], color=cl, alpha=0.2)
     ax.axvline(xlrtrim[1], color=cr, alpha=0.2)
-    ax.plot(xs, ypl, cl)
-    ax.plot(xs, ypr, cr)
+    if FIT_DOUBLEEXP:
+        ax.plot(xpl, ypl, cl)
+        ax.plot(xpr, ypr, cr)
+    else:
+        ax.plot(xs, ypl, cl)
+        ax.plot(xs, ypr, cr)
+
     for umaxfracL in umaxfracLs:
         Ljlfi, Ljrfi = Ljlfs[umaxfracL], Ljrfs[umaxfracL]
         if np.isfinite(Ljlfi):
-            ax.plot(Ljlfi, usaux[xsaux==Ljlfi], marker="o", mfc="b", mec="b")
+            ax.plot(Ljlfi, usaux[xsaux==Ljlfi], marker="o", mfc="r", mec="r")
         if np.isfinite(Ljrfi):
             ax.plot(Ljrfi, usaux[xsaux==Ljrfi], marker="o", mfc="b", mec="b")
 
-    ax.text(0.2, 0.68+dyt, "$e_l$ = %.1f km"%Ljl, fontsize=12, transform=ax.transAxes, ha="center", color="r")
-    ax.text(0.8, 0.68+dyt, "$e_r$ = %.1f km"%Ljr, fontsize=12, transform=ax.transAxes, ha="center", color="b")
-    ax.text(0.2, 0.61+dyt, "$e_l/L_{dl}$ = %.1f, %.1f"%(Ljl/Ldl_surf, Ljl/Ldl_flat), fontsize=12, transform=ax.transAxes, ha="center", color="r")
-    ax.text(0.8, 0.61+dyt, "$e_l/L_{dr}$ = %.1f, %.1f"%(Ljr/Ldr_surf, Ljr/Ldr_flat), fontsize=12, transform=ax.transAxes, ha="center", color="b")
+    ufracpl = 0.5
+    Ljltxt, Ljrtxt = -Ljlfs[ufracpl], Ljrfs[ufracpl]
+
+    ax.text(0.2, 0.68+dyt, "$L_{dl}$ = %.1f km"%Ljltxt, fontsize=12, transform=ax.transAxes, ha="center", color="r")
+    ax.text(0.8, 0.68+dyt, "$L_{dr}$ = %.1f km"%Ljrtxt, fontsize=12, transform=ax.transAxes, ha="center", color="b")
+    ax.text(0.2, 0.61+dyt, "$L_{dl}/L_{dl}$ = %.1f, %.1f"%(Ljltxt/Ldl_surf, Ljltxt/Ldl_flat), fontsize=12, transform=ax.transAxes, ha="center", color="r")
+    ax.text(0.8, 0.61+dyt, "$L_{dr}/L_{dr}$ = %.1f, %.1f"%(Ljrtxt/Ldr_surf, Ljrtxt/Ldr_flat), fontsize=12, transform=ax.transAxes, ha="center", color="b")
     ax.set_xlabel("Cross-stream distance [km]", fontsize=15)
     ax.set_ylabel("Downstream velocity $v$ [m/s]", fontsize=15)
-    ax.set_title("%s (along-track altimetry), cap at $\pm$%1.2f umax"%(name, umaxfrac), fontsize=10)
+    ax.set_title("%s, cap at $\pm$%1.2f umax"%(name, umaxfrac), fontsize=10)
     umaxfracstr = str(umaxfrac).replace(".", "p") + "umax"
     figname = "expfit/jet_umean_%s_%s_%s_%s.png"%(name, umaxfracstr, cap_center, core_constraint)
     fig.savefig(figname, bbox_inches="tight", dpi=125)
