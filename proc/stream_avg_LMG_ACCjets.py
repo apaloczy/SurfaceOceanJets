@@ -155,6 +155,7 @@ def get_trkang(lon1, lon2, lat1, lat2):
 #---
 plt.close("all")
 
+FCORE_UEAST = True
 SPLIT_INOUT = True
 ROTATE_UV_USING_ADT = True
 
@@ -478,10 +479,16 @@ for f in fnames:
             uSAF, vSAF = u[fSAF, :], v[fSAF, :]
 
             try:
-                fcore = np.nanargmax(np.nanmean(uSAF[:, :ntopbins_avg], axis=1))
-                loncoreSAF, latcoreSAF = lonSAF[fcore], latSAF[fcore] # Position of located jet core o plot on map with climatological fronts.
+                if FCORE_UEAST:
+                    uSAFfc = np.nanmean(uSAF[:, :ntopbins_avg], axis=1)
+                    errmsg = "Error finding maximum zonal velocity core for SAF. Skipping."
+                else:
+                    uSAFfc = np.sqrt(np.nanmean(uSAF[:, :ntopbins_avg], axis=1)**2 + np.nanmean(vSAF[:, :ntopbins_avg], axis=1)**2)
+                    errmsg = "Error finding maximum speed core for SAF. Skipping."
+                fcore = np.nanargmax(uSAFfc)
+                loncoreSAF, latcoreSAF = lonSAF[fcore], latSAF[fcore] # Position of located jet core to plot on map with climatological fronts.
             except ValueError:
-                print("Error finding maximum zonal velocity core for SAF. Skipping.")
+                print(errmsg)
                 continue
 
             xSAF = xSAF0 - xSAF0[fcore]
@@ -499,10 +506,16 @@ for f in fnames:
             uPF, vPF = u[fPF, :], v[fPF, :]
 
             try:
-                fcore = np.nanargmax(np.nanmean(uPF[:, :ntopbins_avg], axis=1))
-                loncorePF, latcorePF = lonPF[fcore], latPF[fcore] # Position of located jet core o plot on map with climatological fronts.
+                if FCORE_UEAST:
+                    uPFfc = np.nanmean(uPF[:, :ntopbins_avg], axis=1)
+                    errmsg = "Error finding maximum zonal velocity core for PF. Skipping."
+                else:
+                    uPFfc = np.sqrt(np.nanmean(uPF[:, :ntopbins_avg], axis=1)**2 + np.nanmean(vPF[:, :ntopbins_avg], axis=1)**2)
+                    errmsg = "Error finding maximum speed core for PF. Skipping."
+                fcore = np.nanargmax(uPFfc)
+                loncorePF, latcorePF = lonPF[fcore], latPF[fcore] # Position of located jet core to plot on map with climatological fronts.
             except ValueError:
-                print("Error finding maximum zonal velocity core for PF. Skipping.")
+                print(errmsg)
                 continue
 
             xPF = xPF0 - xPF0[fcore]
@@ -520,10 +533,16 @@ for f in fnames:
             uSACCF, vSACCF = u[fSACCF, :], v[fSACCF, :]
 
             try:
-                fcore = np.nanargmax(np.nanmean(uSACCF[:, :ntopbins_avg], axis=1))
-                loncoreSACCF, latcoreSACCF = lonSACCF[fcore], latSACCF[fcore] # Position of located jet core o plot on map with climatological fronts.
+                if FCORE_UEAST:
+                    uSACCFfc = np.nanmean(uSACCF[:, :ntopbins_avg], axis=1)
+                    errmsg = "Error finding maximum zonal velocity core for SACCF. Skipping."
+                else:
+                    uSACCFfc = np.sqrt(np.nanmean(uSACCF[:, :ntopbins_avg], axis=1)**2 + np.nanmean(vSACCF[:, :ntopbins_avg], axis=1)**2)
+                    errmsg = "Error finding maximum speed core for SACCF. Skipping."
+                fcore = np.nanargmax(uSACCFfc)
+                loncoreSACCF, latcoreSACCF = lonSACCF[fcore], latSACCF[fcore] # Position of located jet core to plot on map with climatological fronts.
             except ValueError:
-                print("Error finding maximum zonal velocity core for SACCF. Skipping.")
+                print(errmsg)
                 continue
 
             xSACCF = xSACCF0 - xSACCF0[fcore]
@@ -1060,9 +1079,19 @@ if ROTATE_UV_USING_ADT:
     dvars_PF.update(dict(angdiff=Angdiff_PF))
     dvars_SACCF.update(dict(angdiff=Angdiff_SACCF))
 
+headout = "../data/derived/"
+if FCORE_UEAST:
+    foutSAF = headout + "ustream_SAFjet_LMG.nc"
+    foutPF = headout + "ustream_PFjet_LMG.nc"
+    foutSACCF = headout + "ustream_SACCFjet_LMG.nc"
+else:
+    foutSAF = headout + "ustream_SAFjet_LMG_fcmaxspd.nc"
+    foutPF = headout + "ustream_PFjet_LMG_fcmaxspd.nc"
+    foutSACCF = headout + "ustream_SACCFjet_LMG_fcmaxspd.nc"
+
 dsSAF = Dataset(data_vars=dvars_SAF).sortby("t")
-dsSAF.to_netcdf("../data/derived/ustream_SAFjet_LMG.nc")
+dsSAF.to_netcdf(foutSAF)
 dsPF = Dataset(data_vars=dvars_PF).sortby("t")
-dsPF.to_netcdf("../data/derived/ustream_PFjet_LMG.nc")
+dsPF.to_netcdf(foutPF)
 dsSACCF = Dataset(data_vars=dvars_SACCF).sortby("t")
-dsSACCF.to_netcdf("../data/derived/ustream_SACCFjet_LMG.nc")
+dsSACCF.to_netcdf(foutSACCF)

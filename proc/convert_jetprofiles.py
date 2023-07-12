@@ -446,10 +446,10 @@ for name in names:
     ufracpl = 0.5
     Ljltxt, Ljrtxt = -Ljlfs[ufracpl], Ljrfs[ufracpl]
 
-    ax.text(0.2, 0.68+dyt, "$L_{dl}$ = %.1f km"%Ljltxt, fontsize=12, transform=ax.transAxes, ha="center", color="r")
-    ax.text(0.8, 0.68+dyt, "$L_{dr}$ = %.1f km"%Ljrtxt, fontsize=12, transform=ax.transAxes, ha="center", color="b")
-    ax.text(0.2, 0.61+dyt, "$L_{dl}/L_{dl}$ = %.1f, %.1f"%(Ljltxt/Ldl_surf, Ljltxt/Ldl_flat), fontsize=12, transform=ax.transAxes, ha="center", color="r")
-    ax.text(0.8, 0.61+dyt, "$L_{dr}/L_{dr}$ = %.1f, %.1f"%(Ljrtxt/Ldr_surf, Ljrtxt/Ldr_flat), fontsize=12, transform=ax.transAxes, ha="center", color="b")
+    ax.text(0.2, 0.68+dyt, "$L_{jl}$ = %.1f km"%Ljltxt, fontsize=12, transform=ax.transAxes, ha="center", color="r")
+    ax.text(0.8, 0.68+dyt, "$L_{jr}$ = %.1f km"%Ljrtxt, fontsize=12, transform=ax.transAxes, ha="center", color="b")
+    ax.text(0.2, 0.61+dyt, "$L_{jl}/L_{dl}$ = %.1f, %.1f"%(Ljltxt/Ldl_surf, Ljltxt/Ldl_flat), fontsize=12, transform=ax.transAxes, ha="center", color="r")
+    ax.text(0.8, 0.61+dyt, "$L_{jr}/L_{dr}$ = %.1f, %.1f"%(Ljrtxt/Ldr_surf, Ljrtxt/Ldr_flat), fontsize=12, transform=ax.transAxes, ha="center", color="b")
     ax.set_xlabel("Cross-stream distance [km]", fontsize=15)
     ax.set_ylabel("Downstream velocity $v$ [m/s]", fontsize=15)
     ax.set_title("%s, cap at $\pm$%1.2f umax"%(name, umaxfrac), fontsize=10)
