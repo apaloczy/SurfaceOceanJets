@@ -233,12 +233,15 @@ for name in names:
     elif "SAFjet" in name:
         f = name
         name = "SAFjet"
+        f = f.replace(".", "_fcmaxspd.")
     elif "PFjet" in name:
         f = name
         name = "PFjet"
+        f = f.replace(".", "_fcmaxspd.")
     elif "SACCFjet" in name:
         f = name
         name = "SACCFjet"
+        f = f.replace(".", "_fcmaxspd.")
     elif name=="EAC29S":
         nameh = "EastAustralianCurrent29S"
     else:
@@ -249,6 +252,7 @@ for name in names:
     else:
         f = out_prefix + f
 
+    print("Input file: ", f)
     ds = open_dataset(f)
     if SYNOP:
         xs = ds["x"].values
