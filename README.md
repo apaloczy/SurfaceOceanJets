@@ -2,7 +2,7 @@
 
 [![DOI](https://zenodo.org/badge/639956040.svg)](https://zenodo.org/badge/latestdoi/639956040)
 
-This repository contains code for a manuscript titled **"Prevalence of deformation-scale surface currents"**, by A. Palóczy and J. H. LaCasce, published in Geophysical Research Letters. This [Jupyter notebook](https://nbviewer.jupyter.org/github/apaloczy/SurfaceOceanJets/blob/main/index.ipynb) provides an overview of the contents.
+This repository contains code for a manuscript titled **"Prevalence of deformation-scale surface currents"**, by A. Palóczy and J. H. LaCasce, [published in Geophysical Research Letters](https://doi.org/10.1029/2023GL104547). This [Jupyter notebook](https://nbviewer.jupyter.org/github/apaloczy/SurfaceOceanJets/blob/main/index.ipynb) provides an overview of the contents.
 
 The directory `plot_figs/` contains Jupyter notebooks used to produce the figures in the manuscript (Figures 1-4 and S1-S2). These notebooks depend on the data files in the `data/` directory. Scripts to generate derived data files are in the `proc/` directory.
 
